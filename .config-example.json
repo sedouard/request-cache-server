@@ -1,0 +1,7 @@
+{
+  "QUERY_APPEND": "client_id=SOME_ID&client_secret=SOME_SECRET",
+  "HOST_PROTOCOL": "http://",
+  "HOST": "api.github.com",
+  "CACHE_TTL_SECS": 100,
+  "REDIS_URL": "redis://localhost:6379/0"
+}
