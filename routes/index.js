@@ -63,7 +63,7 @@ router.all('/*', function(req, res, next) {
       debug('caching request key: ' + req.url);
       redisClient.setAsync(req.url, JSON.stringify(result))
       .then(() => {
-        redisClient.expireAsync(req.url, conf.get('CACHE_TTL_SECS'))
+        redisClient.expireAsync(req.url, parseInt(conf.get('CACHE_TTL_SECS')))
         .then(() => {
           debug('successfuly cached request key: ' + req.url + ' for ' 
             + conf.get('CACHE_TTL_SECS') + ' second TTL');
