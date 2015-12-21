@@ -16,51 +16,68 @@ router.all('/*', function(req, res, next) {
   })
   .then(reply => {
     if (reply) {
-      debug('sending cached response:');
-      res.status(200).send(JSON.parse(reply));
-      return null;
+      var response = JSON.parse(reply);
+      response._isCached = true;
+      return response;
     }
 
     return new Promise((resolve, reject) => {
-      var requestUrl = conf.get('HOST_PROTOCOL') + path.join(conf.get('HOST'), req.url)
-        + '?' + conf.get('QUERY_APPEND');
-      debug('making request to: ' + requestUrl)
+      var requestUrl = conf.get('HOST_PROTOCOL') + path.join(conf.get('HOST'), req.url);
+      debug('making request to: ' + requestUrl);
+      debug('query:');
+      debug({
+        client_id: conf.get('CLIENT_ID'),
+        client_secret: conf.get('CLIENT_SECRET')
+      });
       unirest.get(requestUrl)
+      .query({
+        client_id: conf.get('CLIENT_ID'),
+        client_secret: conf.get('CLIENT_SECRET')
+      })
       .headers({
         'User-Agent': 'Mozilla/5.0'
       })
       .end(response => {
         if(response.error) {
+          debug(response.body);
           return reject(response.error);
         }
         debug('successfuly made request');
-        return resolve(response.body);
+        return resolve(response);
       });
     });
     
   })
   .then(result => {
 
-    if (!result) {
-      // we sent a cached response already
-      return;
-    }
     debug('sending response body');
-    res.status(200).send(result);
+
+    //github specific
+    if (result.headers.link) {
+      debug('sanitizing secrets in headers');
+      result.headers.link = result.headers.link.replace(/&client_id=.+?&client_secret=.+?>/g, '>');
+    }
+    res.status(200).set(result.headers).send(result.body);
     debug('caching request key: ' + req.url);
-    redisClient.setAsync(req.url, JSON.stringify(result))
-    .then(() => {
-      redisClient.expireAsync(req.url, conf.get('CACHE_TTL_SECS'))
+
+    if (result._isCached) {
+      redisClient.setAsync(req.url, JSON.stringify(result))
       .then(() => {
-        debug('successfuly cached request key: ' + req.url + ' for ' 
-          + conf.get('CACHE_TTL_SECS') + ' second TTL');
+        redisClient.expireAsync(req.url, conf.get('CACHE_TTL_SECS'))
+        .then(() => {
+          debug('successfuly cached request key: ' + req.url + ' for ' 
+            + conf.get('CACHE_TTL_SECS') + ' second TTL');
+        });
+        
       });
-      
-    });
+    }
   })
   .catch(err => {
-    console.error(err);
-    console.error(err.stack);
+    if (err.status) {
+      return res.status(err.status).send(err);
+    } else {
+      return res.status(500).send(err);
+    }
   });
 });
 
