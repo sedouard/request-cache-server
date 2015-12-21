@@ -58,9 +58,9 @@ router.all('/*', function(req, res, next) {
       result.headers.link = result.headers.link.replace(/&client_id=.+?&client_secret=.+?>/g, '>');
     }
     res.status(200).set(result.headers).send(result.body);
-    debug('caching request key: ' + req.url);
-
-    if (result._isCached) {
+    
+    if (!result._isCached) {
+      debug('caching request key: ' + req.url);
       redisClient.setAsync(req.url, JSON.stringify(result))
       .then(() => {
         redisClient.expireAsync(req.url, conf.get('CACHE_TTL_SECS'))
