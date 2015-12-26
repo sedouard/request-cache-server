@@ -57,8 +57,9 @@ router.all('/*', function(req, res, next) {
       debug('sanitizing secrets in headers');
       result.headers.link = result.headers.link.replace(/&client_id=.+?&client_secret=.+?>/g, '>');
     }
+    // only instruct browser to cache for 1 hour
+    result.headers['Cache-Control'] = 'public, max-age=3600';
     res.status(200).set(result.headers).send(result.body);
-    
     if (!result._isCached) {
       debug('caching request key: ' + req.url);
       redisClient.setAsync(req.url, JSON.stringify(result))
